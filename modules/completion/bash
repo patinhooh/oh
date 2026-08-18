@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+cat <<'EOF'
+_oh() {
+    local cur prev module
+    cur=${COMP_WORDS[COMP_CWORD]}
+    # TODO: This would help with command completion
+    #prev=${COMP_WORDS[COMP_CWORD - 1]:-}
+
+    # Complete OH options and modules.
+    if (( COMP_CWORD == 1 )); then
+        if [[ $cur == -* ]]; then
+            COMPREPLY=(
+                $(compgen -W '-h --help -l --list' -- "$cur")
+            )
+        else
+            local modules
+            modules=$(
+                find -L "${OH_MODULES:-$HOME/.local/lib/oh}" \
+                    -mindepth 1 \
+                    -maxdepth 1 \
+                    \( -type d -o -type l \) \
+                    -printf '%f\n' |
+                    sort
+            )
+
+            COMPREPLY=(
+                $(compgen -W "$modules" -- "$cur")
+            )
+        fi
+
+        return
+    fi
+
+    module=${COMP_WORDS[1]}
+
+    # Complete Module Commands and arguments.
+    if (( COMP_CWORD == 2 )); then
+        # Arguments beginning with '-' belong to the module's default command.
+        # TODO: We could check for a special command that would give options.
+        #       But would require running module default command.
+        if [[ $cur == -* ]]; then
+            return
+        fi
+
+        local module_dir="${OH_MODULES:-$HOME/.local/lib/oh}/$module"
+        [[ -d $module_dir ]] || return
+
+        local commands
+        commands=$(
+            find -L "$module_dir" \
+                -mindepth 1 \
+                -maxdepth 1 \
+                \( -type f -o -type l \) \
+                -executable \
+                ! -name "$module" \
+                -printf '%f\n' |
+                sort
+        )
+
+        COMPREPLY=(
+            $(compgen -W "$commands" -- "$cur")
+        )
+
+        return
+    fi
+
+    # Arguments after a command belong to the command itself.
+    # TODO: We could check for a special command that would give options.
+    #       But would require running module command.
+    return
+}
+
+complete -F _oh oh
+EOF

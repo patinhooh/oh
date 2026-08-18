@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+#
+# Consts/Vars
+
+readonly VERSION='1.0.0'
+
+readonly OH_MODULES="${OH_MODULES:-"${HOME}/.local/lib/oh"}"
+
+readonly EX_INVALID_CALL=2
+readonly EX_NOT_EXECUTABLE=126
+readonly EX_NOT_FOUND=127
+
+#
+# Functions
+
+usage() {
+    printf '%s\n' \
+        "Usage:" \
+        "    ${0##*/} [options]" \
+        "    ${0##*/} <module> [args...]" \
+        "" \
+        "Options:" \
+        "    -l, --list     List available modules." \
+        "    -v, --version  Show version information and exit." \
+        "    -h, --help     Show this help message and exit." \
+        "" \
+        "Environment:" \
+        "    OH_MODULES     Module directory (default: \$HOME/.local/lib/oh)." \
+        "" \
+        "Module dispatch:" \
+        "    No args after <module>, or an arg starting with '-', runs:" \
+        "        ${0##*/} <module> <module> [args...]" \
+        "" \
+        "    Otherwise, the first arg is the command name:" \
+        "        ${0##*/} <module> <command> [args...]" \
+        "" \
+        "    Remaining args are passed to the selected executable."
+}
+
+die() {
+    local exit_code=$1
+    shift
+
+    local message
+    printf -v message '%s' "${0##*/}"
+
+    local msg
+    for msg in "$@"; do
+        printf -v message '%s: %s' "$message" "$msg"
+    done
+
+    printf '%s\n' "$message" >&2
+    exit "$exit_code"
+}
+
+list_modules() {
+    if [[ ! -d $OH_MODULES ]]; then
+        printf 'No modules installed.\n'
+        return 0
+    fi
+
+    local modules
+    modules=$(
+        find "$OH_MODULES" \
+            -mindepth 1 \
+            -maxdepth 1 \
+            \( -type d -o -type l \) \
+            -printf '    %f\n' |
+            sort
+    )
+
+    if [[ -z $modules ]]; then
+        printf 'No modules installed.\n'
+        return 0
+    fi
+
+    printf 'Modules:\n'
+    printf '%s\n' "$modules"
+}
+
+run() {
+    local module=$1
+    shift
+    [[ $module =~ ^[a-z0-9_-]+$ ]] ||
+        die "$EX_INVALID_CALL" "invalid module" "$module"
+
+    local module_dir="$OH_MODULES/$module"
+    [[ -d $module_dir ]] ||
+        die "$EX_NOT_FOUND" "module not found" "$module"
+
+    # If the second argument exists and is not a flag, treat it as the command
+    # name.
+    # Cases:
+    #   oh module cmd [whatever]
+    #
+    # Otherwise, keep the module's default command and pass the flag through.
+    # Cases:
+    #   oh module -f
+    #   oh module --flag
+    #   oh module -- cmd
+    #   oh module
+    local cmd=$module
+    local command_name=
+    if [[ $# -gt 0 && ${1:0:1} != '-' ]]; then
+        cmd=$1
+        shift
+
+        [[ $cmd =~ ^[a-z0-9_-]+$ ]] ||
+            die "$EX_INVALID_CALL" "invalid command" "$module $cmd"
+
+        command_name=" $cmd"
+    fi
+
+    local script="$module_dir/$cmd"
+    [[ -e $script ]] ||
+        die "$EX_NOT_FOUND" "command not found" "$module$command_name" "$script"
+
+    [[ -x $script ]] ||
+        die "$EX_NOT_EXECUTABLE" "command is not executable" "$module$command_name" "$script"
+
+    exec "$script" "$@"
+}
+
+main() {
+    case "${1:-}" in
+    -l | --list )
+        list_modules
+        ;;
+    -v | --version)
+        printf '%s version %s\n' "${0##*/}" "$VERSION"
+        ;;
+    -h | --help | "")
+        usage
+        ;;
+    -*)
+        printf 'Unknown option: %s\n' "$1" >&2
+        usage >&2
+        exit "$EX_INVALID_CALL"
+        ;;
+
+    *)
+        run "$@"
+        ;;
+    esac
+}
+
+#
+# Entry point
+
+main "$@"
