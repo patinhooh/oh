@@ -5,7 +5,7 @@ set -euo pipefail
 #
 # Consts/Vars
 
-readonly VERSION='1.0.0'
+readonly VERSION='1.1.0'
 
 readonly OH_MODULES="${OH_MODULES:-"${HOME}/.local/lib/oh"}"
 
@@ -114,14 +114,17 @@ run() {
         command_name=" $cmd"
     fi
 
-    local script="$module_dir/$cmd"
-    [[ -e $script ]] ||
-        die "$EX_NOT_FOUND" "command not found" "$module$command_name" "$script"
+    local command_path="$module_dir/$cmd"
+    [[ -e $command_path ]] ||
+        die "$EX_NOT_FOUND" "command not found" "$module$command_name"
 
-    [[ -x $script ]] ||
-        die "$EX_NOT_EXECUTABLE" "command is not executable" "$module$command_name" "$script"
+    [[ -f $command_path ]] ||
+        die "$EX_INVALID_CALL" "not an executable command" "$module$command_name"
 
-    exec "$script" "$@"
+    [[ -x $command_path ]] ||
+        die "$EX_NOT_EXECUTABLE" "command is not executable" "$module$command_name"
+
+    exec "$command_path" "$@"
 }
 
 main() {

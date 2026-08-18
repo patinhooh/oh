@@ -8,8 +8,8 @@ It provides a simple way to group related executables into modules and invoke th
 
 - [Why OH?](#why-oh)
 - [Modules](#modules)
+  - [Module Example](#module-example)
 - [Usage](#usage)
-  - [Under the Hood](#under-the-hood)
 - [Provided modules](#provided-modules)
   - [completion](#completion)
 - [How I use it](#how-i-use-it)
@@ -52,24 +52,15 @@ oh waybar refresh
 
 And it fit better than I expected:
 
-> Oh, Waybar, refresh!
+```text
+Oh, Waybar, refresh!
+```
 
 So **OH** became **Orchestration Helper**.
 
 ## Modules
 
-A module is a directory containing one or more executables. OH uses the module and command names to determine which executable to run.
-
-For example:
-
-```text
-~/.local/lib/oh/example/
-├── example
-└── cleanup
-```
-
-See the [Usage](#usage) section for how OH dispatches arguments to modules and
-their commands.
+A module is a directory containing executables and, optionally, supporting directories. OH uses the module and command names to determine which executable to run.
 
 By default, OH looks for modules in:
 
@@ -83,50 +74,37 @@ The location can be overridden with `OH_MODULES`:
 OH_MODULES="/path/to/modules" oh --list
 ```
 
+### Module Example
+
+```text
+~/.local/lib/oh/example/
+├── example
+├── cleanup
+├── move
+└── lib/
+    └── example.sh
+```
+
+Here, `example` is the module's default command, `cleanup` and `move` are commands, and `lib/example.sh` is supporting code.
+
+Modules can also be used solely as libraries for other modules.
+
+Only executable files at the module's top level can be invoked by OH (`cleanup` and `move`). The `lib` directory is ignored by OH's command dispatch.
+
+See the [Usage](#usage) section for how OH dispatches arguments to modules and their commands.
+
 ## Usage
 
-OH handles its own options until a module name is provided. After that, the
-remaining arguments are passed to the selected executable.
-
-List available modules:
+OH handles its own options until a module name is provided.
 
 ```bash
 oh --list
-oh -l
+oh -v
 ```
 
-Run a module:
+After the module name, OH decides whether the first argument is a command or an argument for the module's default command.
 
-```bash
-oh example
-```
-
-Pass options to a module:
-
-```bash
-oh example --help
-oh example -v
-oh example -- something
-```
-
-Run a command from a module:
-
-```bash
-oh example cleanup
-```
-
-Pass arguments to that command:
-
-```bash
-oh example cleanup --all
-```
-
-### Under the hood
-
-After the module name, OH decides whether the first argument is a command or
-an argument for the module's default executable.
-
-If the first argument after the module starts with `-`, it is passed to the module's default executable:
+If the first argument after the module starts with `-`, it is passed to the module's default command:
 
 ```text
 oh example --help
@@ -141,14 +119,6 @@ oh example cleanup --all
    │       │       └─ argument passed to example/cleanup
    │       └─ command
    └─ module
-```
-
-The corresponding module might look like:
-
-```text
-~/.local/lib/oh/example/
-├── example
-└── cleanup
 ```
 
 So these commands resolve to:
@@ -198,14 +168,18 @@ I keep the configuration for a piece of software and its supporting scripts in t
 For example:
 
 ```text
-sway/        # Stow package
-├── .config/ # Configuration
+sway/                   # Stow package
+├── .config/            # Configuration
 │   └── sway/
 │       └── config
-└── .local/lib/oh/ # OH Modules
-    └── sway/      # Module
-        ├── sway
-        └── screenshot
+└── .local/lib/oh/      # OH Modules
+    ├── sway/           # Module for CLI
+    │   ├── lib/
+    │   │   └── sway.sh # Support Const/Functions for commands
+    │   ├── sway
+    │   └── screenshot
+    └── sway-hooks/     # Module for Hooks
+        └── lid-state
 ```
 
 My typical workflow is:
