@@ -8,6 +8,7 @@ set -euo pipefail
 readonly VERSION='1.1.0'
 
 readonly OH_MODULES="${OH_MODULES:-"${HOME}/.local/lib/oh"}"
+export OH_MODULES
 
 readonly EX_INVALID_CALL=2
 readonly EX_NOT_EXECUTABLE=126
