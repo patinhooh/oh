@@ -16,6 +16,7 @@ _oh() {
                 $(compgen -W '-h --help -l --list' -- "$cur")
             )
         else
+            # FIXME: only include modules if they have commands
             local modules
             modules=$(
                 find -L "${OH_MODULES:-$HOME/.local/lib/oh}" \
@@ -70,6 +71,10 @@ _oh() {
     # Arguments after a command belong to the command itself.
     # TODO: We could check for a special command that would give options.
     #       But would require running module command.
+    # Give path completion.
+    COMPREPLY=(
+        $(compgen -f -- "$cur")
+    )
     return
 }
 
