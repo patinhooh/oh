@@ -103,6 +103,11 @@ run() {
     #   oh module --flag
     #   oh module -- cmd
     #   oh module
+    #
+    # TODO: I think this should be changed, only assume is 'oh/module/cmd' if a
+    #   executable exists, if not just pass to the default 'oh/module/module'.
+    #   This would make possible to have 'oh module something' that would go to
+    #   'oh/module/module' instead of needing 'oh module -- something'
     local cmd=$module
     local command_name=
     if [[ $# -gt 0 && ${1:0:1} != '-' ]]; then
