@@ -5,7 +5,7 @@ set -euo pipefail
 #
 # Consts/Vars
 
-readonly VERSION='1.1.0'
+readonly VERSION='2.0.0'
 
 readonly OH_MODULES="${OH_MODULES:-"${HOME}/.local/lib/oh"}"
 export OH_MODULES
@@ -92,45 +92,53 @@ run() {
     [[ -d $module_dir ]] ||
         die "$EX_NOT_FOUND" "module not found" "$module"
 
-    # If the second argument exists and is not a flag, treat it as the command
-    # name.
-    # Cases:
-    #   oh module cmd [whatever]
+    # The module name is also the name of its default command.
     #
-    # Otherwise, keep the module's default command and pass the flag through.
-    # Cases:
-    #   oh module -f
-    #   oh module --flag
-    #   oh module -- cmd
-    #   oh module
+    # A non-flag argument is treated as a command only when an executable
+    # command with that name exists in the module. Otherwise, it is passed
+    # to the module's default command.
     #
-    # TODO: I think this should be changed, only assume is 'oh/module/cmd' if a
-    #   executable exists, if not just pass to the default 'oh/module/module'.
-    #   This would make possible to have 'oh module something' that would go to
-    #   'oh/module/module' instead of needing 'oh module -- something'
+    # `--` explicitly selects the default command and passes all remaining
+    # arguments through without attempting command dispatch.
+    #
+    # Cases:
+    #   oh module cmd [args...]  -> module/cmd [args...], if cmd exists
+    #   oh module arg [args...]  -> module/module arg [args...]
+    #   oh module -f             -> module/module -f
+    #   oh module --flag         -> module/module --flag
+    #   oh module -- cmd         -> module/module cmd
     local cmd=$module
-    local command_name=
-    if [[ $# -gt 0 && ${1:0:1} != '-' ]]; then
-        cmd=$1
+    if [[ $# -gt 0 && $1 == '--' ]]; then
+        # Explicitly use the default command and pass all remaining arguments through.
         shift
+    elif [[ $# -gt 0 && ${1:0:1} != '-' ]]; then
+        local second_arg=$1
 
-        [[ $cmd =~ ^[a-z0-9_-]+$ ]] ||
-            die "$EX_INVALID_CALL" "invalid command" "$module $cmd"
+        [[ $second_arg =~ ^[a-z0-9_-]+$ ]] ||
+            die "$EX_INVALID_CALL" "invalid command" "$module $second_arg"
 
-        command_name=" $cmd"
+        local cmd_path="$module_dir/$second_arg"
+
+        if [[ -x $cmd_path ]]; then
+            # Consume the argument when it names an executable command.
+            cmd=$second_arg
+            shift
+        fi
     fi
 
-    local command_path="$module_dir/$cmd"
-    [[ -e $command_path ]] ||
-        die "$EX_NOT_FOUND" "command not found" "$module$command_name"
+    local cmd_name=" $cmd"
+    local cmd_path="$module_dir/$cmd"
 
-    [[ -f $command_path ]] ||
-        die "$EX_INVALID_CALL" "not an executable command" "$module$command_name"
+    [[ -e $cmd_path ]] ||
+        die "$EX_NOT_FOUND" "command not found" "$module$cmd_name"
 
-    [[ -x $command_path ]] ||
-        die "$EX_NOT_EXECUTABLE" "command is not executable" "$module$command_name"
+    [[ -f $cmd_path ]] ||
+        die "$EX_INVALID_CALL" "not an executable command" "$module$cmd_name"
 
-    exec "$command_path" "$@"
+    [[ -x $cmd_path ]] ||
+        die "$EX_NOT_EXECUTABLE" "command is not executable" "$module$cmd_name"
+
+    exec "$cmd_path" "$@"
 }
 
 main() {

@@ -102,22 +102,25 @@ oh --list
 oh -v
 ```
 
-After the module name, OH decides whether the first argument is a command or an argument for the module's default command.
-
-If the first argument after the module starts with `-`, it is passed to the module's default command:
-
-```text
-oh example --help
-   │       └─ argument passed to example/example
-   └─ module
-```
-
-Otherwise, the first argument is treated as a command:
+After the module name, the first argument is treated as a command only if an executable command with that name exists in the module. Otherwise, it is passed to the module's default command.
 
 ```text
 oh example cleanup --all
    │       │       └─ argument passed to example/cleanup
    │       └─ command
+   └─ module
+
+oh example foo
+   │       └─ argument passed to example/example
+   └─ module
+```
+
+The module name is also the name of its default command. Use `--` to explicitly pass arguments to the default command.
+
+```text
+oh example -- foo
+   │       │  └─ argument passed to example/example
+   │       └─ use the default command
    └─ module
 ```
 
@@ -129,6 +132,12 @@ oh example
 
 oh example --help
 └── ~/.local/lib/oh/example/example --help
+
+oh example foo
+└── ~/.local/lib/oh/example/example foo
+
+oh example -- foo
+└── ~/.local/lib/oh/example/example foo
 
 oh example cleanup
 └── ~/.local/lib/oh/example/cleanup
