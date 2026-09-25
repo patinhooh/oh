@@ -72,9 +72,9 @@ _oh() {
     # TODO: We could check for a special command that would give options.
     #       But would require running module command.
     # Give path completion.
-    COMPREPLY=(
-        $(compgen -f -- "$cur")
-    )
+    compopt -o filenames
+    mapfile -t COMPREPLY < <(compgen -f -- "$cur")
+
     return
 }
 
